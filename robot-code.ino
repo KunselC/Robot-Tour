@@ -1,36 +1,14 @@
-//========================================================================
-// TopFinishKits.com Template Program for Robot Tour
-//
-//  Board: Arduino Uno
-//  Vehicle: D4
-//  Version: 2.1
-//
-// The information contained in this program is for general education
-// purposes only. The information is provided by TopFinishKits.com and
-// while we endeavor to keep the information up to date and correct,
-// we make no representations or warranties of any kind, express or
-// implied, about the completeness, accuracy, reliability, suitability
-// or availability with respect to the this program, or the website,
-// information, products, services, or related graphics contained on
-// the website for any purpose. Any reliance you place on such
-// information is therefore strictly at your own risk.
-//
-// Change Log:
-//    2023-11-24  - Modified MotionLogic to only use minimum speed at the end
-//                  of a move.
-//                - Changed MotionLogic debug to work with the Serial Plotter.
-//                - Minimum Speed is a constant set with the other constants.
-//
-//========================================================================
+// Command F "Movement" for controlling robot and changing movement speeds
+// Command F "Adjust" to change turning
 #include <Arduino.h>
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>    // this library is needed for the 20x4 display
+#include <LiquidCrystal_I2C.h>
 
 
 #define VERSION           "D4 2.1"
 
 
-#define DISPLAY_PRESENT        0  // set to 1 if the 20x4 I2C Display is present
+#define DISPLAY_PRESENT        0 
 
 
 //
@@ -54,12 +32,14 @@
 
 
 
-//************************* ADJUST THE FOLLOWING TO MATCH YOUR ROBOT ****************************
+//************************* ADJUST THE FOLLOWING TO MATCH MY ROBOT ****************************
 
 
 #define ENCODER_COUNTS_PER_REV  540   // Set to the number of encoder pulses per wheel revolution
+// 540 = 3.4 secs per 500
 #define MM_PER_REV              236   // Set to the number of mm per wheel revolution (Hence : Diameter * Pi)
-#define ENCODER_COUNTS_90_DEG   300   // Set to the number of encoder pulses to make a 90 degree turn
+#define ENCODER_COUNTS_90_DEG   313   // Set to the number of encoder pulses to make a 90 degree turn
+// USE THE ABOVE TO CHANGE DEGREES FOR EACH TURN, UP = MORE DEGREES, DOWN = FEWER DEGREES
 #define SPEED_MIN               200    // Minimum speed (pulses/second) use at the end of individual moves
 
 
@@ -191,79 +171,52 @@ Command cmdQueue;
 
 
 //======================================================================================
-//======================================================================================
-// Loads the command queue with the robots commands to be executed during a run
-//======================================================================================
-//======================================================================================
-void loadCommandQueue() {
+void loadCommandQueue() {  //  ------------GO HERE FOR MOVEMENTS------------------------
+    cmdQueue.clear();
+
+    // Mandatory start
+    cmdQueue.add(VEHICLE_START_WAIT);
+    cmdQueue.add(VEHICLE_START);
+
+    // Set parameters
+    cmdQueue.add(VEHICLE_SET_MOVE_SPEED, 500);  // Speed in encoder pulses per second
+    // 400 = 3.85 secs/ 500 mm
+    // 500 = 3.5 secs/ 500 mm
+    // 600 = 3.15 secs/ 500 mm
+    // +100 = 0.15 sec faster per 500 mm
+    cmdQueue.add(VEHICLE_SET_TURN_SPEED, 250);  // Adjust turn speed
+    // 150 = 2.35 secs/ turn
+    // 250 = 2 secs/ turn
+    // 350 = 1.65 secs/ turn
+    // +100 = 0.35 sec faster per turn
+    cmdQueue.add(VEHICLE_SET_ACCEL, 400);       // Smooth acceleration
 
 
-  cmdQueue.clear();
-  cmdQueue.add(VEHICLE_START_WAIT);     // do not change this line - waits for start pushbutton
-  cmdQueue.add(VEHICLE_START);          // do not change this line
+    // Movements (Half square 250mm, full square 500mm)
+    cmdQueue.add(VEHICLE_FORWARD, 250);
+    cmdQueue.add(VEHICLE_TURN_LEFT);
+    cmdQueue.add(VEHICLE_FORWARD, 500);
+    cmdQueue.add(VEHICLE_TURN_RIGHT);
+    cmdQueue.add(VEHICLE_FORWARD, 500);
+    cmdQueue.add(VEHICLE_TURN_LEFT);
+    cmdQueue.add(VEHICLE_FORWARD, 500);
+    cmdQueue.add(VEHICLE_TURN_RIGHT);
+    cmdQueue.add(VEHICLE_FORWARD, 500);
+    cmdQueue.add(VEHICLE_TURN_RIGHT);
+    cmdQueue.add(VEHICLE_FORWARD, 500);
+    cmdQueue.add(VEHICLE_TURN_LEFT);
 
 
-  // Define robot movement speeds
-  // Speed is encoder pulses per second.
-  // There is a maximum speed.  Testing will be required to learn this speed.
-  //    SETTING THE SPEEDS ABOVE THE MOTOR'S MAXIMUM SPEED WILL CAUSE STRANGE RESULTS
-      cmdQueue.add(VEHICLE_SET_MOVE_SPEED,500);     // Speed used for forward movements  
-      cmdQueue.add(VEHICLE_SET_TURN_SPEED,300);     // Speed used for left or right turns
-      cmdQueue.add(VEHICLE_SET_ACCEL,400);         // smaller is softer   larger is quicker and less accurate moves
+    //  cmdQueue.add(VEHICLE_FORWARD, 250);
+    //  cmdQueue.add(VEHICLE_BACKWARD, 250);
+    //  cmdQueue.add(VEHICLE_TURN_LEFT);
+    //  cmdQueue.add(VEHICLE_TURN_RIGHT);
 
 
-        // Example list of robot movements
-        // This block is modified for each tournament
-      cmdQueue.add(VEHICLE_FORWARD,500);
-      cmdQueue.add(VEHICLE_TURN_LEFT);
-  
-      cmdQueue.add(VEHICLE_BACKWARD,500);
-      cmdQueue.add(VEHICLE_TURN_RIGHT);
-  /*
-      cmdQueue.add(VEHICLE_FORWARD,500);
-      cmdQueue.add(VEHICLE_TURN_LEFT);
-      cmdQueue.add(VEHICLE_FORWARD,500);
-      cmdQueue.add(VEHICLE_TURN_LEFT);
-      delay(500);
-  */
-      
-       
-
-
-      // cmdQueue.add(VEHICLE_FORWARD,830);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_FORWARD,500);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_FORWARD,500);
-      // cmdQueue.add(VEHICLE_TURN_RIGHT);
-      // cmdQueue.add(VEHICLE_FORWARD,500);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_FORWARD,1000);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_FORWARD,1000);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_FORWARD,1500);
-      // cmdQueue.add(VEHICLE_TURN_RIGHT);
-      // cmdQueue.add(VEHICLE_FORWARD,500);
-      // cmdQueue.add(VEHICLE_TURN_RIGHT);
-      // cmdQueue.add(VEHICLE_TURN_RIGHT);
-      // cmdQueue.add(VEHICLE_FORWARD,500);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_FORWARD,500);
-      // cmdQueue.add(VEHICLE_TURN_LEFT);
-      // cmdQueue.add(VEHICLE_FORWARD,500);
-      // cmdQueue.add(VEHICLE_TURN_RIGHT);
-      // cmdQueue.add(VEHICLE_FORWARD,420);
-
-
-
-
-          // This MUST be the last command.  
-      cmdQueue.add(VEHICLE_FINISHED);
-
-
+    // Final
+    cmdQueue.add(VEHICLE_FINISHED);
 }
+
 
 
 //======================================================================================
@@ -598,14 +551,15 @@ void encoderIntRight()  {
 
 //---------------------------------------------------------------------------------------
 void setMotorOutputs() {
-  if (mtrLeft.getOutputFwd()) digitalWrite(PIN_MTR1_DIR_FWD, HIGH);  
-  else                        digitalWrite(PIN_MTR1_DIR_FWD, LOW);
-  if (mtrLeft.getOutputRev()) digitalWrite(PIN_MTR1_DIR_REV, HIGH);  
+  if (mtrLeft.getOutputFwd()) digitalWrite(PIN_MTR1_DIR_REV, HIGH);  // Invert forward/reverse
   else                        digitalWrite(PIN_MTR1_DIR_REV, LOW);
-  if (mtrRight.getOutputFwd()) digitalWrite(PIN_MTR2_DIR_FWD, HIGH);  
-  else                         digitalWrite(PIN_MTR2_DIR_FWD, LOW);
-  if (mtrRight.getOutputRev()) digitalWrite(PIN_MTR2_DIR_REV, HIGH);  
+  if (mtrLeft.getOutputRev()) digitalWrite(PIN_MTR1_DIR_FWD, HIGH);  
+  else                        digitalWrite(PIN_MTR1_DIR_FWD, LOW);
+
+  if (mtrRight.getOutputFwd()) digitalWrite(PIN_MTR2_DIR_REV, HIGH); // Invert forward/reverse
   else                         digitalWrite(PIN_MTR2_DIR_REV, LOW);
+  if (mtrRight.getOutputRev()) digitalWrite(PIN_MTR2_DIR_FWD, HIGH);
+  else                         digitalWrite(PIN_MTR2_DIR_FWD, LOW);
 }
 
 
@@ -880,7 +834,7 @@ void loop() {
   int itmp;
 
 
-    // this block calculates the number microseconds since this function's last execution
+    // ffhis block calculates the number microseconds since this function's last execution
   unsigned long current = micros();
   usecElapsed = current - usLast;
   usLast = current;
